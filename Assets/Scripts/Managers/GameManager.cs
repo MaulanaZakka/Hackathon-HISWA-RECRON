@@ -33,6 +33,12 @@ public class GameManager : MonoBehaviour
     private int currentMicrogameIndex = 0;
     private List<MicrogameResult> microgameResults = new List<MicrogameResult>();
 
+    /// <summary>
+    /// Public access to results — used by Results scene to read completed microgame data.
+    /// </summary>
+    public List<MicrogameResult> MicrogameResults => microgameResults;
+
+
     // ── Events ──
     public event Action<GameState> OnStateChanged;
     public event Action<ProfileType> OnProfileSelected;
@@ -193,9 +199,10 @@ public class GameManager : MonoBehaviour
 
         if (currentMicrogameIndex >= GetTotalMicrogames())
         {
-            // All microgames for this profile are done → show results
+            // All microgames for this profile are done → go to Results scene
             SetState(GameState.Results);
             OnAllMicrogamesCompleted?.Invoke(microgameResults);
+            SceneController.LoadScene("Results");
         }
         else
         {
@@ -205,13 +212,14 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Returns to profile selection (from Results panel).
+    /// Returns to profile selection (from Results scene → reload MainGame scene).
     /// </summary>
     public void ReturnToProfileSelection()
     {
         currentMicrogameIndex = 0;
         microgameResults.Clear();
         SetState(GameState.ProfileSelection);
+        SceneController.LoadScene("MainGame");
     }
 
     /// <summary>

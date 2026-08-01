@@ -4,8 +4,14 @@ using TMPro;
 using System.Collections.Generic;
 
 /// <summary>
-/// Displays the results panel after all microgames in a profile are completed.
-/// Shows: profile name, all jobs within that profile, their descriptions, 
+/// Controller for the Results SCENE (separate scene, not a panel).
+/// Loaded after all microgames in a profile are completed.
+/// 
+/// Reads data from GameManager.Instance (which persists via DontDestroyOnLoad):
+///   - GameManager.Instance.SelectedProfile  → which profile was played
+///   - GameManager.Instance.MicrogameResults  → list of scores/results
+///
+/// Shows: profile name, all jobs within that profile, their descriptions,
 /// and the player's scores. This is the "educational payload" — 
 /// the moment where the player learns what HISWA-RECRON actually does.
 /// </summary>
@@ -34,16 +40,34 @@ public class ResultsPanelUI : MonoBehaviour
 
     private List<GameObject> spawnedJobCards = new List<GameObject>();
 
-    private void OnEnable()
+    // ═══════════════════════════════════════════
+    //  UNITY LIFECYCLE
+    // ═══════════════════════════════════════════
+
+    private void Start()
     {
+        // Wire up buttons
         if (backToProfilesButton != null)
             backToProfilesButton.onClick.AddListener(OnBackToProfiles);
 
         if (backToMenuButton != null)
             backToMenuButton.onClick.AddListener(OnBackToMenu);
+
+        // Auto-populate from GameManager data
+        if (GameManager.Instance != null)
+        {
+            ShowResults(
+                GameManager.Instance.SelectedProfile,
+                GameManager.Instance.MicrogameResults
+            );
+        }
+        else
+        {
+            Debug.LogError("[ResultsPanelUI] GameManager.Instance is null! Cannot show results.");
+        }
     }
 
-    private void OnDisable()
+    private void OnDestroy()
     {
         if (backToProfilesButton != null)
             backToProfilesButton.onClick.RemoveListener(OnBackToProfiles);
@@ -52,8 +76,12 @@ public class ResultsPanelUI : MonoBehaviour
             backToMenuButton.onClick.RemoveListener(OnBackToMenu);
     }
 
+    // ═══════════════════════════════════════════
+    //  POPULATE RESULTS
+    // ═══════════════════════════════════════════
+
     /// <summary>
-    /// Populate the results panel with data from the completed microgames.
+    /// Populate the results with data from the completed microgames.
     /// </summary>
     public void ShowResults(ProfileType profileType, List<MicrogameResult> results)
     {
@@ -154,9 +182,13 @@ public class ResultsPanelUI : MonoBehaviour
         }
     }
 
+    // ═══════════════════════════════════════════
+    //  NAVIGATION
+    // ═══════════════════════════════════════════
+
     private void OnBackToProfiles()
     {
-        Debug.Log("[ResultsPanelUI] Back to profiles");
+        Debug.Log("[ResultsPanelUI] Back to profiles → loading MainGame scene");
         if (GameManager.Instance != null)
             GameManager.Instance.ReturnToProfileSelection();
     }

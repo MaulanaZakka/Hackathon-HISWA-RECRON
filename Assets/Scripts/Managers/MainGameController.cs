@@ -1,34 +1,30 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
 /// Main controller for the MainGame scene. 
 /// Manages transitions between ProfileSelection, Playing, and Results panels.
-/// Instantiates microgame prefabs and passes them to the HUD.
+/// Loads microgame scenes ADDITIVELY (each microgame = separate scene).
+/// MainGame scene stays active so HUD and UI remain visible.
 /// </summary>
 public class MainGameController : MonoBehaviour
 {
     [Header("UI Panels")]
     [SerializeField] private GameObject profileSelectionPanel;
     [SerializeField] private GameObject microgamePanel;
-    [SerializeField] private GameObject resultsPanel;
 
     [Header("UI Controllers")]
     [SerializeField] private ProfileSelectionUI profileSelectionUI;
     [SerializeField] private MicrogameHUD microgameHUD;
-    [SerializeField] private ResultsPanelUI resultsPanelUI;
-
-    [Header("Microgame Spawn Point")]
-    [SerializeField] private Transform microgameSpawnParent;
-
-    [Header("Microgame Prefabs")]
-    [SerializeField] private List<MicrogamePrefabEntry> microgamePrefabs;
 
     [Header("Transition")]
     [SerializeField] private float delayBetweenGames = 2.0f; // seconds between microgames
 
-    private GameObject currentMicrogameInstance;
+    // Track which microgame scene is currently loaded
+    private string currentMicrogameSceneName = "";
+    private MicrogameBase currentMicrogame;
     private List<MicrogameResult> sessionResults = new List<MicrogameResult>();
 
     // ═══════════════════════════════════════════
@@ -50,7 +46,7 @@ public class MainGameController : MonoBehaviour
         }
         else
         {
-            Debug.LogError("[MainGameController] GameManager.Instance is null! Make sure GameManager exists in the MainMenu scene or is a prefab.");
+            Debug.LogError("[MainGameController] GameManager.Instance is null! Make sure GameManager exists in the MainMenu scene.");
             // Fallback: show profile selection
             ShowPanel(profileSelectionPanel);
         }
@@ -77,7 +73,7 @@ public class MainGameController : MonoBehaviour
         {
             case GameManager.GameState.ProfileSelection:
                 ShowPanel(profileSelectionPanel);
-                DestroyCurrentMicrogame();
+                StartCoroutine(UnloadCurrentMicrogameScene());
                 break;
 
             case GameManager.GameState.Playing:
@@ -85,16 +81,15 @@ public class MainGameController : MonoBehaviour
                 sessionResults.Clear();
                 break;
 
-            case GameManager.GameState.Results:
-                ShowPanel(resultsPanel);
-                break;
+            // Results state is handled by a separate Results scene
+            // GameManager loads it automatically
         }
     }
 
     private void HandleMicrogameStarted(int index)
     {
         Debug.Log($"[MainGameController] Starting microgame index: {index}");
-        StartCoroutine(SpawnMicrogame(index));
+        StartCoroutine(LoadMicrogameScene(index));
     }
 
     private void HandleMicrogameCompleted(MicrogameResult result)
@@ -105,93 +100,110 @@ public class MainGameController : MonoBehaviour
 
     private void HandleAllMicrogamesCompleted(List<MicrogameResult> results)
     {
-        Debug.Log($"[MainGameController] All microgames completed! Showing results.");
-
-        // Clean up microgame
-        StartCoroutine(TransitionToResults(results));
+        Debug.Log("[MainGameController] All microgames completed! Transitioning to Results scene.");
+        // Unload the last microgame scene before GameManager loads Results scene
+        StartCoroutine(UnloadCurrentMicrogameScene());
     }
 
     // ═══════════════════════════════════════════
-    //  MICROGAME SPAWNING
+    //  MICROGAME SCENE LOADING (ADDITIVE)
     // ═══════════════════════════════════════════
 
-    private IEnumerator SpawnMicrogame(int index)
+    /// <summary>
+    /// Unloads the previous microgame scene, then loads the next one additively.
+    /// </summary>
+    private IEnumerator LoadMicrogameScene(int index)
     {
-        // Destroy previous microgame if any
-        DestroyCurrentMicrogame();
+        // 1) Unload previous microgame scene if any
+        yield return StartCoroutine(UnloadCurrentMicrogameScene());
 
-        // Small delay for transition
+        // 2) Small delay for transition
         yield return new WaitForSeconds(0.3f);
 
+        // 3) Get the scene name from GameManager
         string microgameID = GameManager.Instance.GetCurrentMicrogameID();
-        GameObject prefab = FindMicrogamePrefab(microgameID);
 
-        if (prefab == null)
+        // The scene name matches the microgameID (e.g. "MG_FixEngine")
+        string sceneName = microgameID;
+
+        // 4) Check if the scene exists in Build Settings
+        if (Application.CanStreamedLevelBeLoaded(sceneName))
         {
-            Debug.LogWarning($"[MainGameController] No prefab found for microgame: {microgameID}. Using placeholder.");
-            // TODO: Create a placeholder microgame
-            // For now, skip to completion
+            // Load the microgame scene additively
+            AsyncOperation loadOp = SceneController.LoadSceneAdditive(sceneName);
+            yield return loadOp;
+
+            currentMicrogameSceneName = sceneName;
+
+            // 5) Find the MicrogameBase component in the newly loaded scene
+            yield return null; // Wait one frame for scene objects to initialize
+
+            currentMicrogame = FindMicrogameInScene(sceneName);
+
+            if (currentMicrogame != null)
+            {
+                // Update HUD
+                var profile = ProfileDatabase.GetProfile(GameManager.Instance.SelectedProfile);
+                if (microgameHUD != null)
+                {
+                    microgameHUD.BindToMicrogame(currentMicrogame);
+                    microgameHUD.SetProgress(index, GameManager.Instance.GetTotalMicrogames(),
+                        profile != null ? profile.nameDutch : "");
+                }
+
+                // Start the microgame!
+                currentMicrogame.StartMicrogame();
+            }
+            else
+            {
+                Debug.LogError($"[MainGameController] No MicrogameBase found in scene: {sceneName}");
+                GameManager.Instance.CompleteMicrogame(false, 0f, 0);
+            }
+        }
+        else
+        {
+            Debug.LogWarning($"[MainGameController] Scene '{sceneName}' not found in Build Settings! Skipping...");
+            // Auto-complete so the game doesn't get stuck
             GameManager.Instance.CompleteMicrogame(true, 5f, 50);
-            yield break;
-        }
-
-        // Spawn microgame
-        currentMicrogameInstance = Instantiate(prefab, microgameSpawnParent);
-        MicrogameBase microgame = currentMicrogameInstance.GetComponent<MicrogameBase>();
-
-        if (microgame == null)
-        {
-            Debug.LogError($"[MainGameController] Prefab {microgameID} has no MicrogameBase component!");
-            yield break;
-        }
-
-        // Update HUD
-        var profile = ProfileDatabase.GetProfile(GameManager.Instance.SelectedProfile);
-        if (microgameHUD != null)
-        {
-            microgameHUD.BindToMicrogame(microgame);
-            microgameHUD.SetProgress(index, GameManager.Instance.GetTotalMicrogames(),
-                profile != null ? profile.nameDutch : "");
-        }
-
-        // Start the microgame!
-        microgame.StartMicrogame();
-    }
-
-    private IEnumerator TransitionToResults(List<MicrogameResult> results)
-    {
-        // Wait a moment before showing results
-        yield return new WaitForSeconds(delayBetweenGames);
-
-        DestroyCurrentMicrogame();
-
-        // Show results panel
-        if (resultsPanelUI != null)
-        {
-            resultsPanelUI.ShowResults(GameManager.Instance.SelectedProfile, results);
         }
     }
 
-    private GameObject FindMicrogamePrefab(string microgameID)
+    /// <summary>
+    /// Finds the MicrogameBase component in a loaded scene.
+    /// </summary>
+    private MicrogameBase FindMicrogameInScene(string sceneName)
     {
-        if (microgamePrefabs == null) return null;
+        Scene scene = SceneManager.GetSceneByName(sceneName);
+        if (!scene.isLoaded) return null;
 
-        foreach (var entry in microgamePrefabs)
+        // Search all root GameObjects in the microgame scene
+        GameObject[] rootObjects = scene.GetRootGameObjects();
+        foreach (var obj in rootObjects)
         {
-            if (entry.microgameID == microgameID)
-                return entry.prefab;
+            MicrogameBase mg = obj.GetComponentInChildren<MicrogameBase>();
+            if (mg != null) return mg;
         }
         return null;
     }
 
-    private void DestroyCurrentMicrogame()
+    /// <summary>
+    /// Unloads the currently loaded microgame scene.
+    /// </summary>
+    private IEnumerator UnloadCurrentMicrogameScene()
     {
-        if (currentMicrogameInstance != null)
+        if (!string.IsNullOrEmpty(currentMicrogameSceneName) 
+            && SceneController.IsSceneLoaded(currentMicrogameSceneName))
         {
-            Destroy(currentMicrogameInstance);
-            currentMicrogameInstance = null;
+            AsyncOperation unloadOp = SceneController.UnloadScene(currentMicrogameSceneName);
+            yield return unloadOp;
+
+            Debug.Log($"[MainGameController] Unloaded scene: {currentMicrogameSceneName}");
         }
+
+        currentMicrogameSceneName = "";
+        currentMicrogame = null;
     }
+
 
     // ═══════════════════════════════════════════
     //  PANEL MANAGEMENT
@@ -204,18 +216,5 @@ public class MainGameController : MonoBehaviour
 
         if (microgamePanel != null)
             microgamePanel.SetActive(panelToShow == microgamePanel);
-
-        if (resultsPanel != null)
-            resultsPanel.SetActive(panelToShow == resultsPanel);
     }
-}
-
-/// <summary>
-/// Maps a microgame ID string to its prefab for the Inspector.
-/// </summary>
-[System.Serializable]
-public class MicrogamePrefabEntry
-{
-    public string microgameID;
-    public GameObject prefab;
 }
