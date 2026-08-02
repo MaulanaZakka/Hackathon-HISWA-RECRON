@@ -10,10 +10,10 @@ EditorBuildSettings:
     guid: 7aa6248372749184a96d356561dd44d3
   - enabled: 1
     path: Assets/Scenes/MainGame.unity
-    guid: 0bfc9e3373808af4cbe5a1d455bdf572
+    guid: 7d757a606a588024f9f731feca6f5a02
   - enabled: 1
     path: Assets/Scenes/Results.unity
-    guid: c2b9860a832c7cc45a0b4277cc31bba8
+    guid: 05f32a128bd751d4b9fef9ea5e1de35e
   - enabled: 1
     path: Assets/Scenes/DeDoener/MG_FixEngine.unity
     guid: 840417d7312bf014981c5281abcd5881
@@ -23,4 +23,19 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/DeDoener/MG_FixPipes.unity
     guid: 9a2d01b4e7e7c204bbcbf60431ed890d
+  - enabled: 1
+    path: Assets/Scenes/DeOrganisator/MG_ManageHarbor.unity
+    guid: be2ad502090709d4eaf4fbbd4c40f0fe
+  - enabled: 1
+    path: Assets/Scenes/De Creatieveling/MG_EntertainGuests.unity
+    guid: ec166c2a40af1454abbfa790093e1349
+  - enabled: 1
+    path: Assets/Scenes/De Helper/MG_TeachSailing.unity
+    guid: f276c4e8123d4b441bf73279b3d608e2
+  - enabled: 1
+    path: Assets/Scenes/De Ondernemer/MG_BeautifyResort.unity
+    guid: 73cab179900fd544e8621976bbabb6d1
+  - enabled: 1
+    path: Assets/Scenes/De Onderzoeker/MG_SewSail.unity
+    guid: d446ea1fbec092d47aedb4feabc7813e
   m_configObjects: {}
