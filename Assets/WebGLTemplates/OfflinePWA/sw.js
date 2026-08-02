@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hiswa-recron-pwa-v1';
+const CACHE_NAME = 'hiswa-recron-pwa-v2';
 const APP_SHELL = [
   './index.html',
   './manifest.json',

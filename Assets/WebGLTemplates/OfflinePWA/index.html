@@ -105,9 +105,15 @@
         // performance, uncomment the following line:
         // config.devicePixelRatio = 1;
       } else {
-        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
-        canvas.style.width = "{{{ WIDTH }}}px";
-        canvas.style.height = "{{{ HEIGHT }}}px";
+        // Desktop style: fit to window while keeping aspect ratio
+        var aspect = {{{ WIDTH }}} / {{{ HEIGHT }}};
+        if (window.innerHeight * aspect < window.innerWidth) {
+          canvas.style.height = "90vh";
+          canvas.style.width = "calc(90vh * " + aspect + ")";
+        } else {
+          canvas.style.width = "90vw";
+          canvas.style.height = "calc(90vw / " + aspect + ")";
+        }
       }
 
       loadingBar.style.display = "flex";
