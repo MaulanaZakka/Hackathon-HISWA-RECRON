@@ -19,7 +19,7 @@ public class ResultsPanelUI : MonoBehaviour
 {
     [Header("Profile Info")]
     [SerializeField] private TextMeshProUGUI profileNameText;
-    [SerializeField] private TextMeshProUGUI profileEmojiText;
+    [SerializeField] private Image profileEmojiImage; // Diubah dari TextMeshPro ke Image
     [SerializeField] private TextMeshProUGUI profileDescriptionText;
     [SerializeField] private Image profileBanner;
 
@@ -96,8 +96,11 @@ public class ResultsPanelUI : MonoBehaviour
         if (profileNameText != null)
             profileNameText.text = profile.nameDutch;
 
-        if (profileEmojiText != null)
-            profileEmojiText.text = profile.emoji;
+        if (profileEmojiImage != null)
+        {
+            Sprite icon = Resources.Load<Sprite>("Profile/" + profile.type.ToString());
+            if (icon != null) profileEmojiImage.sprite = icon;
+        }
 
         if (profileDescriptionText != null)
             profileDescriptionText.text = profile.description;

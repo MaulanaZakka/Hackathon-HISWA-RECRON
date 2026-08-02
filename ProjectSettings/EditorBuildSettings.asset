@@ -14,4 +14,13 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Results.unity
     guid: c2b9860a832c7cc45a0b4277cc31bba8
+  - enabled: 1
+    path: Assets/Scenes/DeDoener/MG_FixEngine.unity
+    guid: 840417d7312bf014981c5281abcd5881
+  - enabled: 1
+    path: Assets/Scenes/DeDoener/MG_ConnectCables.unity
+    guid: b36dc7f653999144e88608825c04902a
+  - enabled: 1
+    path: Assets/Scenes/DeDoener/MG_FixPipes.unity
+    guid: 9a2d01b4e7e7c204bbcbf60431ed890d
   m_configObjects: {}

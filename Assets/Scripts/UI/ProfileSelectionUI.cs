@@ -58,15 +58,18 @@ public class ProfileSelectionUI : MonoBehaviour
 
         // Set up card visuals
         // Find child components by name (flexible for different prefab structures)
-        var emojiText = card.transform.Find("EmojiText")?.GetComponent<TextMeshProUGUI>();
+        var emojiImage = card.transform.Find("EmojiImage")?.GetComponent<Image>();
         var nameText = card.transform.Find("NameText")?.GetComponent<TextMeshProUGUI>();
         var descText = card.transform.Find("DescriptionText")?.GetComponent<TextMeshProUGUI>();
         var jobCountText = card.transform.Find("JobCountText")?.GetComponent<TextMeshProUGUI>();
         var cardButton = card.GetComponent<Button>();
         var cardImage = card.GetComponent<Image>();
 
-        if (emojiText != null)
-            emojiText.text = profile.emoji;
+        if (emojiImage != null)
+        {
+            Sprite icon = Resources.Load<Sprite>("Profile/" + profile.type.ToString());
+            if (icon != null) emojiImage.sprite = icon;
+        }
 
         if (nameText != null)
             nameText.text = profile.nameDutch;

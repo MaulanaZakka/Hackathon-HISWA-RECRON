@@ -6,88 +6,119 @@ using System.Collections.Generic;
 /// Microgame untuk profil De Doener: Technische Dienst (Teknisi Pipa/Bangunan).
 /// Mekanik: Memutar pipa agar tersambung.
 /// Pemain mengetuk (tap) potongan pipa yang posisinya salah agar berputar 90 derajat.
-/// Jika semua pipa menghadap ke arah yang benar (rotasi 0), pemain menang.
 /// </summary>
 public class MG_FixPipes : MicrogameBase
 {
-    [Header("Pipe Segments")]
-    [Tooltip("Daftar tombol pipa yang bisa diputar")]
-    [SerializeField] private List<Button> pipeButtons;
+    [Header("Pipe Segments (Pisahkan jenisnya)")]
+    [Tooltip("Masukkan semua pipa LURUS ke sini")]
+    [SerializeField] private List<Button> straightPipes;
+    
+    [Tooltip("Masukkan semua pipa BELOK (L-shape) ke sini")]
+    [SerializeField] private List<Button> cornerPipes;
     
     [Header("Settings")]
-    [Tooltip("Warna saat pipa belum tersambung benar")]
     [SerializeField] private Color brokenColor = Color.white;
-    [Tooltip("Warna saat pipa sudah pada posisi yang benar")]
     [SerializeField] private Color fixedColor = Color.cyan;
 
-    // Menyimpan rotasi saat ini (dalam kelipatan 90 derajat)
-    private List<int> pipeRotations = new List<int>();
+    private class PipeState
+    {
+        public Button button;
+        public int currentRot;
+        public int targetRot;
+        public bool isStraight;
+    }
+
+    private List<PipeState> allPipes = new List<PipeState>();
 
     protected override void OnSetup()
     {
-        pipeRotations.Clear();
+        allPipes.Clear();
 
-        for (int i = 0; i < pipeButtons.Count; i++)
+        // Setup Pipa Lurus
+        foreach (var btn in straightPipes)
         {
-            if (pipeButtons[i] == null) continue;
-
-            // Beri rotasi acak: 90, 180, atau 270 derajat. (Hindari 0 agar game tidak langsung menang)
-            int randomAngleIndex = Random.Range(1, 4); // 1 = 90, 2 = 180, 3 = 270
-            int currentRot = randomAngleIndex * 90;
-            pipeRotations.Add(currentRot);
-
-            // Terapkan rotasi secara visual
-            pipeButtons[i].transform.localEulerAngles = new Vector3(0, 0, currentRot);
-            
-            // Set warna awal (rusak)
-            pipeButtons[i].GetComponent<Image>().color = brokenColor;
-            pipeButtons[i].interactable = true;
-
-            // Setup listener
-            int index = i; // Cache index
-            pipeButtons[i].onClick.RemoveAllListeners();
-            pipeButtons[i].onClick.AddListener(() => OnPipeClicked(index));
+            if (btn != null) SetupPipe(btn, true);
         }
 
-        Debug.Log("[MG_FixPipes] Setup complete. Rotate the pipes to fix the flow!");
+        // Setup Pipa Belok
+        foreach (var btn in cornerPipes)
+        {
+            if (btn != null) SetupPipe(btn, false);
+        }
+
+        Debug.Log("[MG_FixPipes] Setup complete. Menunggu pemain menyambung pipa.");
+    }
+
+    private void SetupPipe(Button btn, bool isStraight)
+    {
+        PipeState state = new PipeState();
+        state.button = btn;
+        state.isStraight = isStraight;
+
+        // Kunci jawaban = Rotasi awal di Editor
+        state.targetRot = Mathf.RoundToInt(btn.transform.localEulerAngles.z) % 360;
+        if (state.targetRot < 0) state.targetRot += 360;
+
+        // Acak awal: Tambah 90, 180, atau 270 derajat
+        int randomAngle = Random.Range(1, 4) * 90;
+        state.currentRot = (state.targetRot + randomAngle) % 360;
+
+        btn.transform.localEulerAngles = new Vector3(0, 0, state.currentRot);
+        btn.GetComponent<Image>().color = brokenColor;
+        btn.interactable = true;
+
+        int index = allPipes.Count;
+        btn.onClick.RemoveAllListeners();
+        btn.onClick.AddListener(() => OnPipeClicked(index));
+
+        allPipes.Add(state);
     }
 
     private void OnPipeClicked(int index)
     {
         if (!isPlaying || isCompleted) return;
 
-        // Tambah rotasi 90 derajat
-        pipeRotations[index] += 90;
-        
-        // Jaga agar nilai rotasi tetap dalam batas 0-359
-        if (pipeRotations[index] >= 360)
-        {
-            pipeRotations[index] = 0;
-        }
+        PipeState state = allPipes[index];
 
-        // Terapkan rotasi visual
-        pipeButtons[index].transform.localEulerAngles = new Vector3(0, 0, pipeRotations[index]);
+        // Putar 90 derajat searah jarum jam (minus)
+        state.currentRot = (state.currentRot - 90) % 360;
+        if (state.currentRot < 0) state.currentRot += 360;
 
-        // Cek apakah pipa ini sudah di posisi yang benar (rotasi 0)
-        if (pipeRotations[index] == 0)
+        state.button.transform.localEulerAngles = new Vector3(0, 0, state.currentRot);
+
+        // Update warna visual
+        if (IsPipeCorrect(state))
         {
-            pipeButtons[index].GetComponent<Image>().color = fixedColor;
+            state.button.GetComponent<Image>().color = fixedColor;
         }
         else
         {
-            pipeButtons[index].GetComponent<Image>().color = brokenColor;
+            state.button.GetComponent<Image>().color = brokenColor;
         }
 
         CheckWinCondition();
     }
 
+    private bool IsPipeCorrect(PipeState state)
+    {
+        if (state.isStraight)
+        {
+            // Pipa lurus simetris. Beda 180 derajat tetap dianggap benar.
+            return (state.currentRot % 180) == (state.targetRot % 180);
+        }
+        else
+        {
+            // Pipa belok harus persis sama rotasinya
+            return state.currentRot == state.targetRot;
+        }
+    }
+
     private void CheckWinCondition()
     {
         bool allFixed = true;
-        foreach (int rot in pipeRotations)
+        foreach (var state in allPipes)
         {
-            // Jika ada satu saja pipa yang rotasinya bukan 0, belum menang
-            if (rot != 0)
+            if (!IsPipeCorrect(state))
             {
                 allFixed = false;
                 break;
@@ -96,13 +127,13 @@ public class MG_FixPipes : MicrogameBase
 
         if (allFixed)
         {
-            // Matikan interaksi semua tombol
-            foreach (var btn in pipeButtons)
+            // Menang!
+            foreach (var state in allPipes)
             {
-                btn.interactable = false;
+                state.button.interactable = false;
+                state.button.GetComponent<Image>().color = fixedColor;
             }
-
-            WinMicrogame(200); // Bonus 200 point
+            WinMicrogame(200);
         }
     }
 }

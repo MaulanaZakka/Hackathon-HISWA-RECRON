@@ -102,27 +102,9 @@ public class MicrogameHUD : MonoBehaviour
         if (instructionGroup != null)
         {
             instructionGroup.alpha = 1f;
-            // Fade out after 1.5 seconds (handled by animation or coroutine)
-            StartCoroutine(FadeOutInstruction());
+            // Teks instruksi akan tetap tampil (tidak di-fade out)
+            // sesuai permintaan agar pemain bisa terus membaca task-nya.
         }
-    }
-
-    private System.Collections.IEnumerator FadeOutInstruction()
-    {
-        yield return new WaitForSeconds(1.0f);
-
-        float duration = 0.5f;
-        float elapsed = 0f;
-        while (elapsed < duration)
-        {
-            elapsed += Time.deltaTime;
-            if (instructionGroup != null)
-                instructionGroup.alpha = 1f - (elapsed / duration);
-            yield return null;
-        }
-
-        if (instructionGroup != null)
-            instructionGroup.alpha = 0f;
     }
 
     private void ShowResultFlash(bool success, int score)
